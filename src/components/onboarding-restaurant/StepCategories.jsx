@@ -3,8 +3,9 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import Button from "../ui/Button";
 import { getAllCategories } from "../../api/categoryApi";
+import { attachCategories } from "../../api/restaurantApi"
 
-const StepCategories = ({ onNext, onBack }) => {
+const StepCategories = ({ restaurantId, onNext, onBack }) => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -30,9 +31,8 @@ const StepCategories = ({ onNext, onBack }) => {
   const handleAttach = async () => {
     if (selected.length === 0) return;
     setAttaching(true);
-    // TODO: POST /restaurants/:id/categories  { categoryIds: selected }
-    await new Promise((r) => setTimeout(r, 700));
-    console.log("Attaching categories:", selected);
+    const result = await attachCategories(restaurantId, selected)
+    console.log("result of categories", result)
     setAttaching(false);
     onNext({ categoryIds: selected });
   };

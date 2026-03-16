@@ -4,9 +4,10 @@ import Stepper from "../components/onboarding-restaurant/Stepper";
 import StepRestaurant from "../components/onboarding-restaurant/StepRestaurant";
 import StepCategories from "../components/onboarding-restaurant/StepCategories";
 import StepMenuItems from "../components/onboarding-restaurant/StepMenuItems";
+import OnboardSuccess from "../components/onboarding-restaurant/OnboardSuccess";
 
 export default function OnboardingFlow() {
-  const [step, setStep] = useState(2);
+  const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [collectedData, setCollectedData] = useState({});
 
@@ -25,38 +26,7 @@ export default function OnboardingFlow() {
 
   if (done) {
     return (
-      <div style={styles.page}>
-        <div
-          style={{
-            ...styles.container,
-            textAlign: "center",
-            padding: "72px 40px",
-          }}
-        >
-          <div style={styles.successCheck}>✓</div>
-
-          <h2 style={{ ...styles.pageTitle, marginBottom: "8px" }}>
-            Restaurant is live!
-          </h2>
-
-          <p style={styles.pageSubtitle}>
-            <strong>{collectedData.restaurant?.name}</strong> has been fully
-            onboarded.
-          </p>
-
-          <button
-            style={{
-              ...styles.primaryBtn,
-              marginTop: "32px",
-              width: "auto",
-              padding: "11px 28px",
-            }}
-            onClick={resetFlow}
-          >
-            Onboard another restaurant
-          </button>
-        </div>
-      </div>
+      <OnboardSuccess collectedData={collectedData} resetFlow={resetFlow} />
     );
   }
 
@@ -79,12 +49,21 @@ export default function OnboardingFlow() {
 
         {step === 1 && <StepRestaurant onNext={handleNext} />}
 
-        {step === 2 && (
-          <StepCategories onNext={handleNext} onBack={handleBack} />
+        {collectedData && step === 2 && (
+          <StepCategories
+            restaurantId={collectedData?.restaurantId}
+            onNext={handleNext}
+            onBack={handleBack}
+          />
         )}
 
-        {step === 3 && (
-          <StepMenuItems onBack={handleBack} onFinish={() => setDone(true)} />
+        {collectedData && step === 3 && (
+          <StepMenuItems
+            restaurantId={collectedData?.restaurantId}
+            restaurantName={collectedData?.restaurantName}
+            onBack={handleBack}
+            onFinish={() => setDone(true)}
+          />
         )}
       </div>
     </div>
@@ -145,31 +124,5 @@ const styles = {
     height: "1px",
     background: "#f3f4f6",
     margin: "24px 0",
-  },
-
-  primaryBtn: {
-    background: "#1d4ed8",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "11px 24px",
-    fontSize: "14px",
-    fontWeight: "600",
-    cursor: "pointer",
-    letterSpacing: "0.01em",
-  },
-
-  successCheck: {
-    width: "52px",
-    height: "52px",
-    background: "#dcfce7",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "22px",
-    color: "#16a34a",
-    fontWeight: "700",
-    margin: "0 auto 20px",
   },
 };

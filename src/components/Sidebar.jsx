@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   ChevronsLeft,
   ChartBarStacked,
+  Utensils,
 } from "lucide-react";
 
 const NAV = [
@@ -15,11 +16,20 @@ const NAV = [
   },
   {
     section: "Onboarding",
-    items: [{ path: "/onboard", label: "Onboard Restaurant", icon: CirclePlus }],
+    items: [
+      { path: "/onboard", label: "Onboard Restaurant", icon: CirclePlus },
+    ],
   },
   {
     section: "Categories",
     items: [{ path: "/category", label: "Categories", icon: ChartBarStacked }],
+  },
+
+  {
+    section: "Restaurant Details",
+    items: [
+      { path: "/restaurant/:restaurantId", label: "Restaurant Details", icon: Utensils },
+    ],
   },
 ];
 

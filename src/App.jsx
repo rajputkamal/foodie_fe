@@ -5,6 +5,7 @@ import AdminLayout from "./pages/AdminLayout";
 import HomePage from "./pages/HomePage";
 import CategoriesPage from "./pages/CategoriesPage";
 import RestaurantChatPage from "./pages/RestaurantChatPage";
+import RestaurantPage from "./pages/RestaurantPage";
 
 function App() {
   return (
@@ -15,6 +16,8 @@ function App() {
         <Route index element={<HomePage />} />
         <Route path="/onboard" element={<RestaurantOnboarding />} />
         <Route path="/category" element={<CategoriesPage />} />
+        {/* //TODO:: This route and functionality yet to be added */}
+        {/* <Route path="/restaurant/:restaurantId" element={<RestaurantPage />} /> */}
       </Route>
 
       {/* Public Restaurant Page (NO ADMIN LAYOUT) */}

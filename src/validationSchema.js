@@ -22,6 +22,7 @@ export const validationSchema = Yup.object({
     .email("Invalid email address")
     .required("Email is required"),
   phone: Yup.string()
+    .max(10, "Please enter a valid 10 digit number")
     .matches(/^[+]?[\d\s\-()]{7,15}$/, "Invalid phone number")
     .required("Phone number is required"),
   vegType: Yup.string()

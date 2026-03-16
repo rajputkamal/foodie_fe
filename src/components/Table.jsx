@@ -62,7 +62,7 @@ const styles = {
   tableWrapper: {
     background: "#fff",
     borderRadius: "10px",
-    overflow: "hidden",
+    overflow: "auto",
     border: "1px solid #e5e7eb",
   },
   table: {

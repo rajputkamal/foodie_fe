@@ -6,25 +6,30 @@ import Field from "../Field";
 import MenuItemRow from "./MenuItemRow";
 import Button from "../ui/Button";
 
+import { getRestaurantDetails } from "../../api/restaurantApi";
+import { attachMenuItemByCategory } from "../../api/menuItemApi";
+
 const StepMenuItems = ({
   onBack,
   onFinish,
-  restaurantId = "mock-restaurant-id",
-  attachedCategoryIds = [],
+  restaurantId,
+  restaurantName,
 }) => {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [formOpen, setFormOpen] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  const getAttachedRestaurantCategories = async () => {
+    const data = await getRestaurantDetails(restaurantId);
+    setCategories(data.categories);
+  };
+
   useEffect(() => {
-    // TODO: GET /categories?ids=attachedCategoryIds
-    // simulateFetchCategories().then((all) => {
-    //   const filtered = attachedCategoryIds.length
-    //     ? all.filter((c) => attachedCategoryIds.includes(c.id))
-    //     : all;
-    //   setCategories(filtered);
-    // });
+    if (restaurantId) {
+      getAttachedRestaurantCategories();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formik = useFormik({
@@ -46,10 +51,9 @@ const StepMenuItems = ({
         price: Number(values.price),
         vegType: values.vegType,
       };
-      // TODO: POST /menu-items
-      await new Promise((r) => setTimeout(r, 600));
-      console.log("POST /menu-items payload:", payload);
-      setItems((prev) => [{ id: Date.now().toString(), ...payload }, ...prev]);
+
+      const result = await attachMenuItemByCategory(payload);
+      setItems((prev) => [{ id: result.id, ...payload }, ...prev]);
       resetForm();
       setSubmitting(false);
       setFormOpen(false);
@@ -83,7 +87,7 @@ const StepMenuItems = ({
                 <label style={styles.label}>Restaurant</label>
                 <div style={styles.readonlyField}>
                   <span style={{ fontSize: "13px", color: "#374151" }}>
-                    Bloom Coffee
+                    {restaurantName}
                   </span>
                   <span style={styles.lockedBadge}>Auto-filled</span>
                 </div>
@@ -108,8 +112,8 @@ const StepMenuItems = ({
                 >
                   <option value="">Select a category...</option>
                   {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.icon} {c.name}
+                    <option key={c._id} value={c._id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -197,7 +201,7 @@ const StepMenuItems = ({
                 }}
               >
                 <Button
-                primary
+                  primary
                   title={submitting ? "Adding..." : "+ Add to Menu"}
                   disabled={submitting}
                   type="submit"

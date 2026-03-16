@@ -1,16 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import {Send} from "lucide-react"
+import { Send } from "lucide-react";
 
 import OrderDrawer from "../components/OrderDrawer";
 import ChatHeader from "../components/ChatHeader";
-
-const categories = [
-  { name: "Hot Drinks", icon: "☕" },
-  { name: "Cold Drinks", icon: "🍨" },
-  { name: "Food", icon: "🍽" },
-  { name: "Popular", icon: "✨" },
-];
+import { getRestaurantDetails } from "../api/restaurantApi";
 
 const menu = [
   {
@@ -34,6 +28,8 @@ const menu = [
 
 export default function RestaurantChatPage() {
   const { restaurantId, tableNo } = useParams();
+  const [restaurantData, setRestaurantData] = useState([]);
+  const [restaurantCategories, setRestaurantCategories] = useState([]);
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
 
@@ -47,6 +43,19 @@ export default function RestaurantChatPage() {
   const [input, setInput] = useState("");
 
   const chatRef = useRef(null);
+
+  console.log("restuarantdata", restaurantData);
+
+  const getRestaurantDetail = async () => {
+    const data = await getRestaurantDetails(restaurantId);
+    setRestaurantData(data.restaurant);
+    setRestaurantCategories(data.categories);
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    getRestaurantDetail();
+  }, []);
 
   useEffect(() => {
     chatRef.current?.scrollTo({
@@ -132,7 +141,7 @@ export default function RestaurantChatPage() {
   return (
     <div style={styles.page}>
       <ChatHeader
-        cafeName="Bloom Cafe"
+        cafeName={restaurantData.name}
         tableNo={tableNo}
         handleShowOrders={() => setShowOrders(true)}
         ordersQty={ordersQty}
@@ -193,13 +202,13 @@ export default function RestaurantChatPage() {
 
       {/* CATEGORY BAR */}
       <div style={styles.categories}>
-        {categories.map((c) => (
+        {restaurantCategories.map((c) => (
           <button
-            key={c.name}
+            key={c._id}
             style={styles.categoryBtn}
-            onClick={() => handleCategoryClick(c.name)}
+            onClick={() => handleCategoryClick(c._id)}
           >
-            {c.icon} {c.name}
+            🍽 {c.name}
           </button>
         ))}
       </div>

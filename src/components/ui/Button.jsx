@@ -5,7 +5,8 @@ const Button = ({
   icon: Icon,
   disabled = false,
   style = {},
-  type = "button"
+  type = "button",
+  loading = false,
 }) => {
   const baseStyle = primary ? styles.primaryBtn : styles.ghostBtn;
 
@@ -21,8 +22,14 @@ const Button = ({
         ...style,
       }}
     >
-      {Icon && <Icon size={16} />}
-      {title}
+      {loading ? (
+        "Loading..."
+      ) : (
+        <>
+          {Icon && <Icon size={16} />}
+          {title}
+        </>
+      )}
     </button>
   );
 };

@@ -115,6 +115,7 @@ const CategoriesPage = () => {
 
       <Table
         tableHead={[
+            { label: "Category ID", field: "_id" },
           { label: "Category Name", field: "name" },
           { label: "Created At", field: "createdAt", type: "date" },
           { label: "Actions", field: "actions" },

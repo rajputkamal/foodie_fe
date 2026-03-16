@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:5100/api/foodie",
+  baseURL: "http://localhost:5000/api/foodie",
   headers: {
     "Content-Type": "application/json",
   },
@@ -9,7 +9,7 @@ const axiosInstance = axios.create({
 
 // Optional: attach token automatically
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("foodie_token");
+  const token = localStorage.getItem("token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

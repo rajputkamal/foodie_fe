@@ -5,10 +5,10 @@ import Field from "../Field";
 import { vegTypeOptions } from "../../constants";
 import { validationSchema } from "../../validationSchema";
 import Button from "../ui/Button";
-import {createRestaurant} from "../../api/restaurantApi"
+import { createRestaurant } from "../../api/restaurantApi";
 
 const StepRestaurant = ({ onNext }) => {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   const [logoPreview, setLogoPreview] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -24,11 +24,16 @@ const StepRestaurant = ({ onNext }) => {
     },
     validationSchema,
     onSubmit: async (values) => {
-      setLoading(true)
-      const result = await createRestaurant(values)
-      if(result.message && result.token) {
-        onNext({ restaurant: values });
-        setLoading(false)
+      setLoading(true);
+      const result = await createRestaurant(values);
+      if (result.message && result.token) {
+        localStorage.setItem("token", result.token);
+        onNext({
+          restaurant: values,
+          restaurantId: result.data._id,
+          restaurantName: result.data.name,
+        });
+        setLoading(false);
       }
     },
   });
@@ -71,8 +76,8 @@ const StepRestaurant = ({ onNext }) => {
               name="phone"
               label="Phone"
               type="tel"
-              max={10}
-              placeholder="+91 98765 43210"
+              maxLength={10}
+              placeholder="98765 43210"
               formik={formik}
             />
           </div>
@@ -186,9 +191,12 @@ const StepRestaurant = ({ onNext }) => {
       <div style={s.footerRow}>
         <Button
           primary
-          title=" Save & Continue →"
+          title="Save & Continue →"
           type="submit"
-          disabled={!formik.isValid || !formik.dirty || formik.isSubmitting}
+          loading={loading}
+          disabled={
+            !formik.isValid || !formik.dirty || formik.isSubmitting || loading
+          }
         />
       </div>
     </form>
