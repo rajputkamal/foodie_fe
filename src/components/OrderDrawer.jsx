@@ -1,4 +1,4 @@
-import { X, Minus, Plus, ShoppingCart } from "lucide-react";
+import { X, Minus, Plus, ShoppingCart, IndianRupee } from "lucide-react";
 
 const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
   const total = orders.reduce((t, i) => t + i.price * i.qty, 0).toFixed(2);
@@ -28,7 +28,9 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
             <div style={styles.orderItem}>
               <div>
                 <div style={styles.itemTitle}>{item.name}</div>
-                <div style={styles.itemPrice}>${item.price}</div>
+                <div style={styles.itemPrice}>
+                   <IndianRupee size={12} />
+                  {item.price}</div>
               </div>
 
               <div style={styles.qtyControls}>
@@ -62,7 +64,10 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
       <div style={styles.drawerFooter}>
         <div style={styles.totalRow}>
           <span>Total</span>
-          <span style={styles.totalPrice}>${total}</span>
+          
+          <span style={styles.totalPrice}>
+             <IndianRupee size={12} />
+            {total}</span>
         </div>
 
         <button style={styles.placeBtn}>Place Order</button>

@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   ChevronsLeft,
   ChartBarStacked,
+  QrCode,
   Utensils,
 } from "lucide-react";
 
@@ -26,9 +27,18 @@ const NAV = [
   },
 
   {
+    section: "QR code generator",
+    items: [{ path: "/qr-code", label: "QR code generator", icon: QrCode }],
+  },
+
+  {
     section: "Restaurant Details",
     items: [
-      { path: "/restaurant/:restaurantId", label: "Restaurant Details", icon: Utensils },
+      {
+        path: "/restaurant/:restaurantId",
+        label: "Restaurant Details",
+        icon: Utensils,
+      },
     ],
   },
 ];

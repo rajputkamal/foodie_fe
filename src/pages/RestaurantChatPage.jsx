@@ -1,30 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Send, IndianRupee } from "lucide-react";
+import Fuse from "fuse.js";
 
 import OrderDrawer from "../components/OrderDrawer";
 import ChatHeader from "../components/ChatHeader";
-import { getRestaurantDetails } from "../api/restaurantApi";
+import {
+  getRestaurantDetails,
+  getMenuItemsByCategory,
+} from "../api/restaurantApi";
 
-const menu = [
-  {
-    name: "House Blend Latte",
-    price: 4.5,
-    description: "Signature espresso with steamed milk",
-    tag: "Most Popular",
-  },
-  {
-    name: "Matcha Oat Latte",
-    price: 5.5,
-    description: "Ceremonial grade matcha with oat milk",
-    tag: "New",
-  },
-  {
-    name: "Classic Americano",
-    price: 3.5,
-    description: "Rich espresso with hot water",
-  },
-];
+import { searchMenuItems } from "../api/menuItemApi";
 
 export default function RestaurantChatPage() {
   const { restaurantId, tableNo } = useParams();
@@ -32,6 +18,15 @@ export default function RestaurantChatPage() {
   const [restaurantCategories, setRestaurantCategories] = useState([]);
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
+  const [addedItem, setAddedItem] = useState(null);
+
+  const fuse = new Fuse(restaurantCategories, {
+    keys: ["name"],
+    threshold: 0.5,
+    includeScore: true,
+    ignoreLocation: true,
+    minMatchCharLength: 3,
+  });
 
   const [messages, setMessages] = useState([
     {
@@ -43,8 +38,6 @@ export default function RestaurantChatPage() {
   const [input, setInput] = useState("");
 
   const chatRef = useRef(null);
-
-  console.log("restuarantdata", restaurantData);
 
   const getRestaurantDetail = async () => {
     const data = await getRestaurantDetails(restaurantId);
@@ -64,48 +57,132 @@ export default function RestaurantChatPage() {
     });
   }, [messages]);
 
-  const handleCategoryClick = (category) => {
+  const handleCategoryClick = async (categoryId, categoryName) => {
     setMessages((prev) => [
       ...prev,
-      { role: "user", text: `Show me ${category}` },
+      { role: "user", text: `Show me ${categoryName}` },
     ]);
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", text: "🔎 Finding best menu for you..." },
-      ]);
-    }, 500);
+    setMessages((prev) => [...prev, { role: "bot", typing: true }]);
 
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { role: "bot", menu }]);
-    }, 1500);
+    try {
+      const items = await getMenuItemsByCategory(restaurantId, categoryId);
+
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated.pop();
+
+        return [
+          ...updated,
+          {
+            role: "bot",
+            text:
+              items.length > 0
+                ? `Here are some items from this category 🍽`
+                : `No items found in this category 😕`,
+            ...(items.length > 0 && { menu: items }),
+          },
+        ];
+      });
+    } catch (error) {
+      console.error("Error while fetching menu items", error);
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated.pop();
+
+        return [
+          ...updated,
+          { role: "bot", text: "❌ Failed to load menu. Try again." },
+        ];
+      });
+    }
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input) return;
 
-    const userText = input;
+    const userText = input.toLowerCase();
+    const cleanedText = userText
+      .replace(/\b(show|me|give|i|want|to|see|please)\b/g, "")
+      .trim();
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", text: userText },
+      { role: "user", text: input },
       { role: "bot", typing: true },
     ]);
 
     setInput("");
 
-    setTimeout(() => {
+    try {
+      const result = fuse.search(cleanedText);
+
+      let matchedCategory = null;
+      matchedCategory = result.length > 0 ? result[0].item : null;
+      if (result.length > 0 && result[0].score < 0.4) {
+        matchedCategory = result[0].item;
+      }
+
+      if (matchedCategory) {
+        const items = await getMenuItemsByCategory(
+          restaurantId,
+          matchedCategory._id,
+        );
+
+        return setMessages((prev) => {
+          const updated = [...prev];
+          updated.pop();
+
+          return [
+            ...updated,
+            {
+              role: "bot",
+              text: `Here are some ${matchedCategory.name} 🍽`,
+              menu: items,
+            },
+          ];
+        });
+      }
+
+      const items = await searchMenuItems(restaurantId, cleanedText);
+
+      if (items.length > 0) {
+        return setMessages((prev) => {
+          const updated = [...prev];
+          updated.pop();
+
+          return [
+            ...updated,
+            {
+              role: "bot",
+              text: `I found these for you 👇`,
+              menu: items,
+            },
+          ];
+        });
+      }
+
       setMessages((prev) => {
         const updated = [...prev];
-        updated.pop(); // remove typing
-        return [...updated, { role: "bot", text: "🤖 Checking our menu..." }];
-      });
-    }, 2000);
+        updated.pop();
 
-    setTimeout(() => {
-      setMessages((prev) => [...prev, { role: "bot", menu }]);
-    }, 3500);
+        return [
+          ...updated,
+          {
+            role: "bot",
+            text: "😕 I couldn’t find that. Try a category below 👇",
+          },
+        ];
+      });
+    } catch (error) {
+      console.error("error", error);
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated.pop();
+
+        return [...updated, { role: "bot", text: "❌ Something went wrong." }];
+      });
+    }
   };
 
   const addToOrder = (item) => {
@@ -120,6 +197,12 @@ export default function RestaurantChatPage() {
 
       return [...prev, { ...item, qty: 1 }];
     });
+
+    setAddedItem(item.name);
+
+    setTimeout(() => {
+      setAddedItem(null);
+    }, 1000);
   };
 
   const increaseQty = (name) => {
@@ -147,7 +230,6 @@ export default function RestaurantChatPage() {
         ordersQty={ordersQty}
       />
 
-      {/* CHAT AREA */}
       <div style={styles.chat} ref={chatRef}>
         {messages.map((msg, i) => (
           <div
@@ -177,18 +259,46 @@ export default function RestaurantChatPage() {
                 <div style={styles.menuContainer}>
                   {msg.menu.map((item, index) => (
                     <div key={index} style={styles.menuCard}>
-                      <div>
-                        <div style={styles.menuTitle}>{item.name}</div>
+                      {item?.image && (
+                        <img
+                          src={
+                            item.image ||
+                            "https://source.unsplash.com/100x100/?food"
+                          }
+                          alt={item?.name || ""}
+                          style={{
+                            width: 60,
+                            height: 60,
+                            borderRadius: 8,
+                            objectFit: "cover",
+                            marginRight: 10,
+                          }}
+                        />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={styles.menuTitleRow}>
+                          <div style={styles.vegIndicator(item.vegType)}></div>
+                          <div>{item.name}</div>
+                        </div>
                         <div style={styles.menuDesc}>{item.description}</div>
                       </div>
 
                       <div style={styles.menuRight}>
-                        <div style={styles.price}>${item.price}</div>
+                        <div style={styles.price}>
+                          <IndianRupee size={12} />
+                          {item.price}
+                        </div>
                         <button
                           onClick={() => addToOrder(item)}
-                          style={styles.addBtn}
+                          style={{
+                            ...styles.addBtn,
+                            background:
+                              addedItem === item.name
+                                ? "#16a34a"
+                                : styles.addBtn.background,
+                          }}
                         >
-                          +
+                          {addedItem === item.name ? "✓" : "+"}
                         </button>
                       </div>
                     </div>
@@ -200,20 +310,18 @@ export default function RestaurantChatPage() {
         ))}
       </div>
 
-      {/* CATEGORY BAR */}
       <div style={styles.categories}>
         {restaurantCategories.map((c) => (
           <button
             key={c._id}
             style={styles.categoryBtn}
-            onClick={() => handleCategoryClick(c._id)}
+            onClick={() => handleCategoryClick(c._id, c.name)}
           >
             🍽 {c.name}
           </button>
         ))}
       </div>
 
-      {/* INPUT */}
       <div style={styles.inputBar}>
         <input
           style={styles.input}
@@ -222,7 +330,7 @@ export default function RestaurantChatPage() {
           onChange={(e) => setInput(e.target.value)}
         />
 
-        <button style={styles.send} onClick={sendMessage}>
+        <button type="submit" style={styles.send} onClick={sendMessage}>
           <Send size={18} />
         </button>
       </div>
@@ -283,6 +391,19 @@ const styles = {
     gap: 12,
     marginTop: 10,
   },
+  menuTitleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  vegIndicator: (type) => ({
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    background:
+      type === "veg" ? "#16a34a" : type === "non-veg" ? "#dc2626" : "#f59e0b",
+  }),
 
   menuCard: {
     display: "flex",
@@ -313,6 +434,9 @@ const styles = {
     fontWeight: 600,
     marginBottom: 6,
     color: "#374151",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   addBtn: {
@@ -366,11 +490,14 @@ const styles = {
   },
 
   send: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
     border: "none",
     background: "#2F6FED",
     color: "#fff",
-    width: 46,
-    height: 46,
+    width: 42,
+    height: 42,
     borderRadius: "50%",
     fontSize: 18,
     cursor: "pointer",
