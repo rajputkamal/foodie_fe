@@ -40,14 +40,16 @@ const styles = {
   btnLayout: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "6px",
   },
 
   primaryBtn: {
-    background: "#1d4ed8",
+    background:
+      "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "#ffffff",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "100px",
     padding: "11px 24px",
     fontSize: "14px",
     fontWeight: "600",
@@ -61,7 +63,7 @@ const styles = {
     background: "none",
     color: "#6b7280",
     border: "1px solid #e5e7eb",
-    borderRadius: "8px",
+    borderRadius: "100px",
     padding: "11px 20px",
     fontSize: "14px",
     fontWeight: "500",

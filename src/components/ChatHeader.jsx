@@ -26,7 +26,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    padding: 18,
+    padding: "1.2rem",
     background: "#ffffff",
     borderBottom: "1px solid #E6E8EB",
     color: "#374151",
@@ -43,25 +43,25 @@ const styles = {
     alignItems: "center",
     gap: "4px",
     marginLeft: "auto",
-    background: "#2563eb",
+    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "white",
-    padding: "8px 14px",
+    padding: "0.8rem 1.2rem",
     borderRadius: 20,
-    fontSize: 14,
+    fontSize: "1.2rem",
     cursor: "pointer",
   },
 
   logo: {
-    fontSize: 30,
+    fontSize: "2.4rem",
   },
 
   title: {
     fontWeight: 600,
-    fontSize: 18,
+    fontSize: "1.2rem",
   },
 
   sub: {
-    fontSize: 13,
+    fontSize: "1rem",
     color: "#6b7280",
   },
 };

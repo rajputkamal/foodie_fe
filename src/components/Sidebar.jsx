@@ -31,16 +31,16 @@ const NAV = [
     items: [{ path: "/qr-code", label: "QR code generator", icon: QrCode }],
   },
 
-  {
-    section: "Restaurant Details",
-    items: [
-      {
-        path: "/restaurant/:restaurantId",
-        label: "Restaurant Details",
-        icon: Utensils,
-      },
-    ],
-  },
+  // {
+  //   section: "Restaurant Details",
+  //   items: [
+  //     {
+  //       path: "/restaurant/:restaurantId",
+  //       label: "Restaurant Details",
+  //       icon: Utensils,
+  //     },
+  //   ],
+  // },
 ];
 
 export function Sidebar() {

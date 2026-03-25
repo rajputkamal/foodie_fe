@@ -23,7 +23,7 @@ const OnboardSuccess = ({ collectedData, resetFlow }) => {
 
         <Button
           primary
-          title=" Onboard another restaurant"
+          title="Onboard another restaurant"
           onClick={resetFlow}
         />
       </div>

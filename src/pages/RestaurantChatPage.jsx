@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Send, IndianRupee } from "lucide-react";
 import Fuse from "fuse.js";
@@ -9,24 +9,17 @@ import {
   getRestaurantDetails,
   getMenuItemsByCategory,
 } from "../api/restaurantApi";
-
 import { searchMenuItems } from "../api/menuItemApi";
 
 export default function RestaurantChatPage() {
   const { restaurantId, tableNo } = useParams();
-  const [restaurantData, setRestaurantData] = useState([]);
+
+  const [restaurantData, setRestaurantData] = useState({});
   const [restaurantCategories, setRestaurantCategories] = useState([]);
   const [orders, setOrders] = useState([]);
   const [showOrders, setShowOrders] = useState(false);
   const [addedItem, setAddedItem] = useState(null);
-
-  const fuse = new Fuse(restaurantCategories, {
-    keys: ["name"],
-    threshold: 0.5,
-    includeScore: true,
-    ignoreLocation: true,
-    minMatchCharLength: 3,
-  });
+  const [loadingRestaurant, setLoadingRestaurant] = useState(true);
 
   const [messages, setMessages] = useState([
     {
@@ -38,90 +31,328 @@ export default function RestaurantChatPage() {
   const [input, setInput] = useState("");
 
   const chatRef = useRef(null);
+  const inputRef = useRef(null);
 
+  /**
+   * -----------------------------
+   * Helpers
+   * -----------------------------
+   */
+  const normalizeText = (text = "") =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ");
+
+  const removeCommonWords = (text = "") =>
+    text.replace(
+      /\b(show|me|give|i|want|to|see|please|can|you|get|some|a|an|the|for|with|need|like|have)\b/g,
+      "",
+    );
+
+  const getCategoryTypos = (word = "") => {
+    const typoMap = {
+      coffee: ["cofee", "cofe", "coffe", "coffie"],
+      tea: ["tee", "te"],
+      burger: ["burgr", "buger", "burgar"],
+      pizza: ["piza", "pizzza", "pissa"],
+      biryani: ["biriyani", "biryan", "birani"],
+      noodles: ["nodles", "noodls", "nudles"],
+      sandwich: ["sandwitch", "sandwhich", "sandwiche"],
+      fries: ["frys", "frise", "friess"],
+      pasta: ["psta", "pastaa"],
+      momos: ["momoss", "momo"],
+      dosa: ["dosaa", "dhosa"],
+      idli: ["idly", "idlee"],
+      shake: ["shak", "shke"],
+      juice: ["juce", "jucie"],
+      rice: ["rce", "rics"],
+      soup: ["soop", "suop"],
+      cake: ["cak", "caake"],
+      icecream: ["ice cream", "icecrem", "icecreem"],
+    };
+
+    return typoMap[word] || [];
+  };
+
+  const isCategoryIntent = (text = "") => {
+    const categoryKeywords = [
+      "show",
+      "category",
+      "categories",
+      "menu",
+      "options",
+      "items",
+      "varieties",
+      "type",
+      "types",
+      "available",
+      "list",
+      "all",
+    ];
+
+    return categoryKeywords.some((word) => normalizeText(text).includes(word));
+  };
+
+  const isLikelySpecificItemSearch = (text = "") => {
+    const normalized = normalizeText(text);
+    const words = normalized.split(" ").filter(Boolean);
+
+    // Examples:
+    // "idli", "masala dosa", "veg burger"
+    return words.length > 0 && words.length <= 3;
+  };
+
+  /**
+   * -----------------------------
+   * Normalized Categories + Fuse
+   * -----------------------------
+   */
+  const normalizedCategories = useMemo(
+    () =>
+      restaurantCategories.map((category) => ({
+        ...category,
+        searchName: normalizeText(category.name),
+      })),
+    [restaurantCategories],
+  );
+
+  const fuse = useMemo(
+    () =>
+      new Fuse(normalizedCategories, {
+        keys: ["searchName"],
+        threshold: 0.35,
+        includeScore: true,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+        shouldSort: true,
+      }),
+    [normalizedCategories],
+  );
+
+  /**
+   * -----------------------------
+   * Fetch Restaurant Data
+   * -----------------------------
+   */
   const getRestaurantDetail = async () => {
-    const data = await getRestaurantDetails(restaurantId);
-    setRestaurantData(data.restaurant);
-    setRestaurantCategories(data.categories);
+    try {
+      setLoadingRestaurant(true);
+      const data = await getRestaurantDetails(restaurantId);
+
+      setRestaurantData(data?.restaurant || {});
+      setRestaurantCategories(data?.categories || []);
+    } catch (error) {
+      console.error("Failed to fetch restaurant details", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          text: "❌ Failed to load restaurant details. Please refresh the page.",
+        },
+      ]);
+    } finally {
+      setLoadingRestaurant(false);
+    }
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!restaurantId) return;
     getRestaurantDetail();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restaurantId]);
 
+  /**
+   * -----------------------------
+   * Auto Scroll Chat
+   * -----------------------------
+   */
   useEffect(() => {
-    chatRef.current?.scrollTo({
-      top: chatRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    const timeout = setTimeout(() => {
+      chatRef.current?.scrollTo({
+        top: chatRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 100);
+
+    return () => clearTimeout(timeout);
   }, [messages]);
 
+  /**
+   * -----------------------------
+   * Safe Typing Bubble Helpers
+   * -----------------------------
+   */
+  const addTypingMessage = () => {
+    setMessages((prev) => [...prev, { role: "bot", typing: true }]);
+  };
+
+  const replaceTypingMessage = (newMessage) => {
+    setMessages((prev) => {
+      const updated = [...prev];
+      const lastTypingIndex = [...updated]
+        .reverse()
+        .findIndex((msg) => msg.typing);
+
+      if (lastTypingIndex !== -1) {
+        updated.splice(updated.length - 1 - lastTypingIndex, 1);
+      }
+
+      return [...updated, newMessage];
+    });
+  };
+
+  /**
+   * -----------------------------
+   * Category Matching Logic
+   * -----------------------------
+   */
+  const findBestCategoryMatch = (query) => {
+    const normalizedQuery = normalizeText(query);
+
+    if (!normalizedQuery) return null;
+
+    // 1. Exact category match
+    const exactMatch = normalizedCategories.find(
+      (category) => category.searchName === normalizedQuery,
+    );
+    if (exactMatch) return exactMatch;
+
+    // 2. Direct includes category match
+    const includesMatch = normalizedCategories.find((category) =>
+      category.searchName.includes(normalizedQuery),
+    );
+    if (includesMatch) return includesMatch;
+
+    // 3. Reverse includes match
+    const reverseIncludesMatch = normalizedCategories.find((category) =>
+      normalizedQuery.includes(category.searchName),
+    );
+    if (reverseIncludesMatch) return reverseIncludesMatch;
+
+    // 4. Known typo aliases
+    const typoAliasMatch = normalizedCategories.find((category) => {
+      const aliases = getCategoryTypos(category.searchName);
+      return aliases.includes(normalizedQuery);
+    });
+    if (typoAliasMatch) return typoAliasMatch;
+
+    // 5. Word-by-word typo alias check (for multi-word categories)
+    const multiWordTypoMatch = normalizedCategories.find((category) => {
+      const words = category.searchName.split(" ");
+      return words.some((word) =>
+        getCategoryTypos(word).includes(normalizedQuery),
+      );
+    });
+    if (multiWordTypoMatch) return multiWordTypoMatch;
+
+    // 6. Strict Fuse fuzzy match
+    const fuseResults = fuse.search(normalizedQuery);
+
+    if (fuseResults.length > 0 && fuseResults[0].score <= 0.35) {
+      return fuseResults[0].item;
+    }
+
+    return null;
+  };
+
+  /**
+   * -----------------------------
+   * Handle Category Button Click
+   * -----------------------------
+   */
   const handleCategoryClick = async (categoryId, categoryName) => {
     setMessages((prev) => [
       ...prev,
       { role: "user", text: `Show me ${categoryName}` },
     ]);
 
-    setMessages((prev) => [...prev, { role: "bot", typing: true }]);
+    addTypingMessage();
 
     try {
       const items = await getMenuItemsByCategory(restaurantId, categoryId);
 
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated.pop();
-
-        return [
-          ...updated,
-          {
-            role: "bot",
-            text:
-              items.length > 0
-                ? `Here are some items from this category 🍽`
-                : `No items found in this category 😕`,
-            ...(items.length > 0 && { menu: items }),
-          },
-        ];
+      replaceTypingMessage({
+        role: "bot",
+        text:
+          items.length > 0
+            ? `Here are some items from ${categoryName} 🍽`
+            : `No items found in ${categoryName} 😕`,
+        ...(items.length > 0 && { menu: items }),
       });
     } catch (error) {
       console.error("Error while fetching menu items", error);
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated.pop();
 
-        return [
-          ...updated,
-          { role: "bot", text: "❌ Failed to load menu. Try again." },
-        ];
+      replaceTypingMessage({
+        role: "bot",
+        text: "❌ Failed to load menu. Try again.",
       });
     }
   };
 
+  /**
+   * -----------------------------
+   * Handle Chat Send
+   * -----------------------------
+   */
   const sendMessage = async () => {
-    if (!input) return;
+    if (!input.trim()) return;
 
-    const userText = input.toLowerCase();
-    const cleanedText = userText
-      .replace(/\b(show|me|give|i|want|to|see|please)\b/g, "")
-      .trim();
+    const originalInput = input.trim();
+    const cleanedText = normalizeText(removeCommonWords(originalInput));
+    const categoryIntent = isCategoryIntent(originalInput);
+    const likelySpecificItem = isLikelySpecificItemSearch(cleanedText);
+
+    if (!cleanedText) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: originalInput },
+        {
+          role: "bot",
+          text: "😄 Tell me what you’d like to eat or drink!",
+        },
+      ]);
+      setInput("");
+      return;
+    }
 
     setMessages((prev) => [
       ...prev,
-      { role: "user", text: input },
+      { role: "user", text: originalInput },
       { role: "bot", typing: true },
     ]);
 
     setInput("");
 
     try {
-      const result = fuse.search(cleanedText);
+      /**
+       * -----------------------------
+       * CASE 1:
+       * If user likely asked for a specific item,
+       * search MENU ITEMS first
+       * -----------------------------
+       */
+      if (!categoryIntent && likelySpecificItem) {
+        const itemResults = await searchMenuItems(restaurantId, cleanedText);
 
-      let matchedCategory = null;
-      matchedCategory = result.length > 0 ? result[0].item : null;
-      if (result.length > 0 && result[0].score < 0.4) {
-        matchedCategory = result[0].item;
+        if (itemResults.length > 0) {
+          replaceTypingMessage({
+            role: "bot",
+            text: `I found these for you 👇`,
+            menu: itemResults,
+          });
+          return;
+        }
       }
+
+      /**
+       * -----------------------------
+       * CASE 2:
+       * Try category matching
+       * -----------------------------
+       */
+      const matchedCategory = findBestCategoryMatch(cleanedText);
 
       if (matchedCategory) {
         const items = await getMenuItemsByCategory(
@@ -129,62 +360,73 @@ export default function RestaurantChatPage() {
           matchedCategory._id,
         );
 
-        return setMessages((prev) => {
-          const updated = [...prev];
-          updated.pop();
-
-          return [
-            ...updated,
-            {
-              role: "bot",
-              text: `Here are some ${matchedCategory.name} 🍽`,
-              menu: items,
-            },
-          ];
+        replaceTypingMessage({
+          role: "bot",
+          text:
+            items.length > 0
+              ? `Here are some ${matchedCategory.name} 🍽`
+              : `No items found in ${matchedCategory.name} 😕`,
+          ...(items.length > 0 && { menu: items }),
         });
+
+        return;
       }
 
+      /**
+       * -----------------------------
+       * CASE 3:
+       * Fallback to menu item search
+       * -----------------------------
+       */
       const items = await searchMenuItems(restaurantId, cleanedText);
 
       if (items.length > 0) {
-        return setMessages((prev) => {
-          const updated = [...prev];
-          updated.pop();
-
-          return [
-            ...updated,
-            {
-              role: "bot",
-              text: `I found these for you 👇`,
-              menu: items,
-            },
-          ];
+        replaceTypingMessage({
+          role: "bot",
+          text: `I found these for you 👇`,
+          menu: items,
         });
+
+        return;
       }
 
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated.pop();
-
-        return [
-          ...updated,
-          {
-            role: "bot",
-            text: "😕 I couldn’t find that. Try a category below 👇",
-          },
-        ];
+      /**
+       * -----------------------------
+       * CASE 4:
+       * Final fallback
+       * -----------------------------
+       */
+      replaceTypingMessage({
+        role: "bot",
+        text: "😕 I couldn’t find that. Try a category below 👇",
       });
     } catch (error) {
-      console.error("error", error);
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated.pop();
+      console.error("Error while searching menu/category", error);
 
-        return [...updated, { role: "bot", text: "❌ Something went wrong." }];
+      replaceTypingMessage({
+        role: "bot",
+        text: "❌ Something went wrong. Please try again.",
       });
     }
   };
 
+  /**
+   * -----------------------------
+   * Enter Key Support
+   * -----------------------------
+   */
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  /**
+   * -----------------------------
+   * Order Logic
+   * -----------------------------
+   */
   const addToOrder = (item) => {
     setOrders((prev) => {
       const existing = prev.find((i) => i.name === item.name);
@@ -224,13 +466,21 @@ export default function RestaurantChatPage() {
   return (
     <div style={styles.page}>
       <ChatHeader
-        cafeName={restaurantData.name}
+        cafeName={restaurantData?.name || "Restaurant"}
         tableNo={tableNo}
         handleShowOrders={() => setShowOrders(true)}
         ordersQty={ordersQty}
       />
 
       <div style={styles.chat} ref={chatRef}>
+        {loadingRestaurant && (
+          <div
+            style={{ textAlign: "center", padding: "1rem", color: "#6b7280" }}
+          >
+            Loading restaurant...
+          </div>
+        )}
+
         {messages.map((msg, i) => (
           <div
             key={i}
@@ -258,7 +508,7 @@ export default function RestaurantChatPage() {
               {msg.menu && (
                 <div style={styles.menuContainer}>
                   {msg.menu.map((item, index) => (
-                    <div key={index} style={styles.menuCard}>
+                    <div key={item?._id || index} style={styles.menuCard}>
                       {item?.image && (
                         <img
                           src={
@@ -272,15 +522,20 @@ export default function RestaurantChatPage() {
                             borderRadius: 8,
                             objectFit: "cover",
                             marginRight: 10,
+                            flexShrink: 0,
                           }}
                         />
                       )}
-                      <div style={{ flex: 1 }}>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={styles.menuTitleRow}>
                           <div style={styles.vegIndicator(item.vegType)}></div>
-                          <div>{item.name}</div>
+                          <div style={styles.menuTitle}>{item.name}</div>
                         </div>
-                        <div style={styles.menuDesc}>{item.description}</div>
+
+                        <div style={styles.menuDesc}>
+                          {item.description || "Tasty and freshly prepared."}
+                        </div>
                       </div>
 
                       <div style={styles.menuRight}>
@@ -288,6 +543,7 @@ export default function RestaurantChatPage() {
                           <IndianRupee size={12} />
                           {item.price}
                         </div>
+
                         <button
                           onClick={() => addToOrder(item)}
                           style={{
@@ -324,16 +580,19 @@ export default function RestaurantChatPage() {
 
       <div style={styles.inputBar}>
         <input
+          ref={inputRef}
           style={styles.input}
           placeholder="Ask about our menu..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
         />
 
-        <button type="submit" style={styles.send} onClick={sendMessage}>
+        <button type="button" style={styles.send} onClick={sendMessage}>
           <Send size={18} />
         </button>
       </div>
+
       {showOrders && (
         <OrderDrawer
           orders={orders}
@@ -358,31 +617,34 @@ const styles = {
   chat: {
     flex: 1,
     overflowY: "auto",
-    padding: "20px 18px",
+    padding: "1.2rem",
     background: "#FFFFFF",
   },
 
   botBubble: {
     background: "#F1F3F5",
-    padding: "14px 16px",
+    padding: "1.2rem",
     borderRadius: "16px 16px 16px 6px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     maxWidth: 420,
-    marginBottom: 12,
+    marginBottom: "0.4rem",
     color: "#1F2937",
-    lineHeight: 1.4,
     position: "relative",
+    fontSize: "1.05rem",
+    lineHeight: 1.5,
   },
 
   userBubble: {
-    background: "#2F6FED",
+    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "white",
-    padding: "14px 16px",
+    padding: "1.2rem",
     borderRadius: "16px 16px 6px 16px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     maxWidth: 420,
-    marginBottom: 12,
+    marginBottom: "0.4rem",
     position: "relative",
+    fontSize: "1.05rem",
+    lineHeight: 1.5,
   },
 
   menuContainer: {
@@ -391,16 +653,19 @@ const styles = {
     gap: 12,
     marginTop: 10,
   },
+
   menuTitleRow: {
     display: "flex",
     alignItems: "center",
     gap: 8,
+    marginBottom: 6,
   },
 
   vegIndicator: (type) => ({
     width: 12,
     height: 12,
     borderRadius: "50%",
+    flexShrink: 0,
     background:
       type === "veg" ? "#16a34a" : type === "non-veg" ? "#dc2626" : "#f59e0b",
   }),
@@ -408,73 +673,89 @@ const styles = {
   menuCard: {
     display: "flex",
     justifyContent: "space-between",
-    padding: 16,
+    gap: 12,
+    padding: "1rem",
     background: "#fff",
     borderRadius: 12,
     border: "1px solid #e5e7eb",
+    alignItems: "flex-start",
   },
 
   menuTitle: {
     fontWeight: 600,
-    marginBottom: 4,
     color: "#374151",
+    wordBreak: "break-word",
   },
 
   menuDesc: {
-    fontSize: 13,
+    fontSize: "0.95rem",
     color: "#6b7280",
+    lineHeight: 1.4,
+    wordBreak: "break-word",
   },
 
   menuRight: {
     textAlign: "right",
     color: "#374151",
+    minWidth: 60,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
   },
 
   price: {
     fontWeight: 600,
-    marginBottom: 6,
     color: "#374151",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+    gap: 2,
   },
 
   addBtn: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: "50%",
     border: "none",
-    background: "#2563eb",
+    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "#fff",
-    fontSize: 18,
+    fontSize: "1.2rem",
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "0.2s ease",
   },
 
   categories: {
     display: "flex",
-    gap: 10,
-    padding: "12px 16px",
+    gap: 8,
+    padding: "1rem 1.2rem",
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
     overflowX: "auto",
     color: "#374151",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
   },
 
   categoryBtn: {
     border: "1px solid #E5E7EB",
     background: "#F7F7F8",
-    padding: "8px 14px",
+    padding: "0.75rem 1rem",
     borderRadius: 22,
     cursor: "pointer",
-    fontSize: 14,
+    fontSize: "0.95rem",
     whiteSpace: "nowrap",
     color: "#374151",
+    fontWeight: 500,
   },
 
   inputBar: {
     display: "flex",
     gap: 10,
-    padding: 14,
+    padding: "1rem 1.2rem",
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
   },
@@ -483,10 +764,11 @@ const styles = {
     flex: 1,
     borderRadius: 24,
     border: "1px solid #E5E7EB",
-    padding: "12px 16px",
+    padding: "1rem 1.2rem",
     background: "#F3F4F6",
-    fontSize: 14,
+    fontSize: "1rem",
     color: "#374151",
+    outline: "none",
   },
 
   send: {
@@ -494,14 +776,15 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     border: "none",
-    background: "#2F6FED",
+    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "#fff",
     width: 42,
     height: 42,
     borderRadius: "50%",
-    fontSize: 18,
     cursor: "pointer",
+    flexShrink: 0,
   },
+
   typing: {
     display: "flex",
     gap: 4,

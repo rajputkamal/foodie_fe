@@ -1,4 +1,5 @@
 import { X, Minus, Plus, ShoppingCart, IndianRupee } from "lucide-react";
+import Button from "./ui/Button";
 
 const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
   const total = orders.reduce((t, i) => t + i.price * i.qty, 0).toFixed(2);
@@ -29,8 +30,9 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
               <div>
                 <div style={styles.itemTitle}>{item.name}</div>
                 <div style={styles.itemPrice}>
-                   <IndianRupee size={12} />
-                  {item.price}</div>
+                  <IndianRupee size={12} />
+                  {item.price}
+                </div>
               </div>
 
               <div style={styles.qtyControls}>
@@ -60,17 +62,18 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
       </div>
 
       <div style={styles.separator}></div>
-
       <div style={styles.drawerFooter}>
         <div style={styles.totalRow}>
           <span>Total</span>
-          
-          <span style={styles.totalPrice}>
-             <IndianRupee size={12} />
-            {total}</span>
-        </div>
 
-        <button style={styles.placeBtn}>Place Order</button>
+          <span style={styles.totalPrice}>
+            <IndianRupee size={12} />
+            {total}
+          </span>
+        </div>
+        
+        <Button primary title="Place Order" />
+        
       </div>
     </div>
   );
@@ -88,7 +91,7 @@ const styles = {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     boxShadow: "0 -8px 30px rgba(0,0,0,0.12)",
-    padding: 20,
+    padding: "1.2rem",
     maxHeight: "55vh",
     display: "flex",
     flexDirection: "column",
@@ -99,7 +102,6 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
   },
 
   headerLeft: {
@@ -107,7 +109,7 @@ const styles = {
     gap: 8,
     alignItems: "center",
     fontWeight: 600,
-    fontSize: 16,
+    fontSize: "1.2rem",
   },
 
   closeBtn: {
@@ -149,14 +151,15 @@ const styles = {
   },
 
   itemPrice: {
-    fontSize: 13,
+    fontSize: "1.4rem",
     color: "#6b7280",
+    fontWeight: 600,
     marginTop: 2,
   },
 
   qtyControls: {
     display: "flex",
-    gap: 10,
+    gap: "0.6rem",
     alignItems: "center",
   },
 
@@ -167,8 +170,8 @@ const styles = {
   },
 
   qtyBtn: {
-    width: 30,
-    height: 30,
+    width: 24,
+    height: 24,
     borderRadius: "50%",
     border: "1px solid #E5E7EB",
     background: "#F9FAFB",
@@ -188,7 +191,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     fontWeight: 500,
-    fontSize: 15,
+    fontSize: "1.4rem",
   },
 
   totalPrice: {
@@ -196,13 +199,13 @@ const styles = {
   },
 
   placeBtn: {
-    background: "#2563eb",
+    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "white",
     border: "none",
-    padding: "12px",
+    padding: "1.2rem",
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    fontSize: 15,
+    fontSize: "1.4rem",
   },
 };
