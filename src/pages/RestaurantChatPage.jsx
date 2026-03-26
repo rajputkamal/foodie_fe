@@ -90,6 +90,25 @@ export default function RestaurantChatPage() {
   };
 
   useEffect(() => {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${window.innerHeight}px`,
+      );
+    };
+
+    setAppHeight();
+
+    window.addEventListener("resize", setAppHeight);
+    window.addEventListener("orientationchange", setAppHeight);
+
+    return () => {
+      window.removeEventListener("resize", setAppHeight);
+      window.removeEventListener("orientationchange", setAppHeight);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!restaurantId) return;
     getRestaurantDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -471,8 +490,8 @@ export default function RestaurantChatPage() {
 
 const styles = {
   page: {
-    height: "100dvh",
-    minHeight: "100dvh",
+    height: "var(--app-height)",
+    maxHeight: "var(--app-height)",
     display: "flex",
     flexDirection: "column",
     background: "#F5F6F8",
@@ -485,6 +504,7 @@ const styles = {
     padding: "1.2rem",
     background: "#FFFFFF",
     minHeight: 0,
+    WebkitOverflowScrolling: "touch",
   },
 
   loadingText: {
@@ -622,6 +642,7 @@ const styles = {
     scrollbarWidth: "none",
     msOverflowStyle: "none",
     flexShrink: 0,
+    WebkitOverflowScrolling: "touch",
   },
 
   categoryBtn: {
