@@ -477,9 +477,6 @@ const styles = {
     flexDirection: "column",
     background: "#F5F6F8",
     fontFamily: "Inter, sans-serif",
-    overflow: "hidden",
-    paddingTop: "env(safe-area-inset-top)",
-    paddingBottom: "env(safe-area-inset-bottom)",
   },
 
   chat: {
@@ -487,6 +484,7 @@ const styles = {
     overflowY: "auto",
     padding: "1.2rem",
     background: "#FFFFFF",
+    minHeight: 0,
   },
 
   loadingText: {
@@ -641,12 +639,10 @@ const styles = {
   inputBar: {
     display: "flex",
     gap: 10,
-    padding: "1rem 1.2rem calc(1rem + env(safe-area-inset-bottom)) 1.2rem",
+    padding: "1rem 1.2rem max(1rem, env(safe-area-inset-bottom)) 1.2rem",
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
-    position: "sticky",
-    bottom: 0,
-    zIndex: 10,
+    flexShrink: 0,
   },
 
   input: {
