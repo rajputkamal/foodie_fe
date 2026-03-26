@@ -5,7 +5,7 @@ import { Store, QrCode, Printer, RotateCcw, Table2 } from "lucide-react";
 import { getAllRestaurants } from "../api/restaurantApi";
 import Button from "../components/ui/Button";
 
-const short_url = "http://localhost:5173";
+const short_url = "https://foodie-fe-puce.vercel.app/restaurant";
 
 export default function QRGenerator() {
   const [restaurants, setRestaurants] = useState([]);
@@ -159,7 +159,9 @@ export default function QRGenerator() {
                 <p style={styles.footerText}>Powered by Foodie AI</p>
               </div>
 
-              <Button primary title="  Print QR" onClick={handlePrint} />
+              <div style={styles.printButtonWrapper}>
+                <Button primary title="  Print QR" onClick={handlePrint} />
+              </div>
 
               <div style={styles.urlPreview}>
                 <span style={styles.urlLabel}>QR URL:</span>
@@ -422,6 +424,7 @@ const styles = {
 
   footer: {
     marginTop: 20,
+    marginBottom: 20,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -440,21 +443,10 @@ const styles = {
     margin: 0,
   },
 
-  printBtn: {
-    marginTop: 18,
-    width: "100%",
+  printButtonWrapper: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    gap: 8,
-    padding: "13px 16px",
-    background: "#0f172a",
-    color: "#fff",
-    border: "none",
-    borderRadius: 14,
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: "0.98rem",
   },
 
   urlPreview: {

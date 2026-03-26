@@ -10,6 +10,18 @@ import {
   getMenuItemsByCategory,
 } from "../api/restaurantApi";
 import { searchMenuItems } from "../api/menuItemApi";
+import {
+  getOrdersFromStorage,
+  saveOrdersToStorage,
+} from "../../utils/orderStorage";
+
+import {
+  normalizeText,
+  removeCommonWords,
+  getCategoryTypos,
+  isCategoryIntent,
+  isLikelySpecificItemSearch,
+} from "../../utils/restaurantChat";
 
 export default function RestaurantChatPage() {
   const { restaurantId, tableNo } = useParams();
@@ -17,6 +29,7 @@ export default function RestaurantChatPage() {
   const [restaurantData, setRestaurantData] = useState({});
   const [restaurantCategories, setRestaurantCategories] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [ordersHydrated, setOrdersHydrated] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [addedItem, setAddedItem] = useState(null);
   const [loadingRestaurant, setLoadingRestaurant] = useState(true);
@@ -33,82 +46,6 @@ export default function RestaurantChatPage() {
   const chatRef = useRef(null);
   const inputRef = useRef(null);
 
-  /**
-   * -----------------------------
-   * Helpers
-   * -----------------------------
-   */
-  const normalizeText = (text = "") =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s]/g, "")
-      .replace(/\s+/g, " ");
-
-  const removeCommonWords = (text = "") =>
-    text.replace(
-      /\b(show|me|give|i|want|to|see|please|can|you|get|some|a|an|the|for|with|need|like|have)\b/g,
-      "",
-    );
-
-  const getCategoryTypos = (word = "") => {
-    const typoMap = {
-      coffee: ["cofee", "cofe", "coffe", "coffie"],
-      tea: ["tee", "te"],
-      burger: ["burgr", "buger", "burgar"],
-      pizza: ["piza", "pizzza", "pissa"],
-      biryani: ["biriyani", "biryan", "birani"],
-      noodles: ["nodles", "noodls", "nudles"],
-      sandwich: ["sandwitch", "sandwhich", "sandwiche"],
-      fries: ["frys", "frise", "friess"],
-      pasta: ["psta", "pastaa"],
-      momos: ["momoss", "momo"],
-      dosa: ["dosaa", "dhosa"],
-      idli: ["idly", "idlee"],
-      shake: ["shak", "shke"],
-      juice: ["juce", "jucie"],
-      rice: ["rce", "rics"],
-      soup: ["soop", "suop"],
-      cake: ["cak", "caake"],
-      icecream: ["ice cream", "icecrem", "icecreem"],
-    };
-
-    return typoMap[word] || [];
-  };
-
-  const isCategoryIntent = (text = "") => {
-    const categoryKeywords = [
-      "show",
-      "category",
-      "categories",
-      "menu",
-      "options",
-      "items",
-      "varieties",
-      "type",
-      "types",
-      "available",
-      "list",
-      "all",
-    ];
-
-    return categoryKeywords.some((word) => normalizeText(text).includes(word));
-  };
-
-  const isLikelySpecificItemSearch = (text = "") => {
-    const normalized = normalizeText(text);
-    const words = normalized.split(" ").filter(Boolean);
-
-    // Examples:
-    // "idli", "masala dosa", "veg burger"
-    return words.length > 0 && words.length <= 3;
-  };
-
-  /**
-   * -----------------------------
-   * Normalized Categories + Fuse
-   * -----------------------------
-   */
   const normalizedCategories = useMemo(
     () =>
       restaurantCategories.map((category) => ({
@@ -131,11 +68,6 @@ export default function RestaurantChatPage() {
     [normalizedCategories],
   );
 
-  /**
-   * -----------------------------
-   * Fetch Restaurant Data
-   * -----------------------------
-   */
   const getRestaurantDetail = async () => {
     try {
       setLoadingRestaurant(true);
@@ -163,11 +95,20 @@ export default function RestaurantChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
 
-  /**
-   * -----------------------------
-   * Auto Scroll Chat
-   * -----------------------------
-   */
+  useEffect(() => {
+    if (!restaurantId || !tableNo) return;
+
+    const savedOrders = getOrdersFromStorage(restaurantId, tableNo);
+    setOrders(savedOrders);
+    setOrdersHydrated(true);
+  }, [restaurantId, tableNo]);
+
+  useEffect(() => {
+    if (!restaurantId || !tableNo || !ordersHydrated) return;
+
+    saveOrdersToStorage(restaurantId, tableNo, orders);
+  }, [orders, restaurantId, tableNo, ordersHydrated]);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       chatRef.current?.scrollTo({
@@ -179,11 +120,6 @@ export default function RestaurantChatPage() {
     return () => clearTimeout(timeout);
   }, [messages]);
 
-  /**
-   * -----------------------------
-   * Safe Typing Bubble Helpers
-   * -----------------------------
-   */
   const addTypingMessage = () => {
     setMessages((prev) => [...prev, { role: "bot", typing: true }]);
   };
@@ -203,42 +139,32 @@ export default function RestaurantChatPage() {
     });
   };
 
-  /**
-   * -----------------------------
-   * Category Matching Logic
-   * -----------------------------
-   */
   const findBestCategoryMatch = (query) => {
     const normalizedQuery = normalizeText(query);
 
     if (!normalizedQuery) return null;
 
-    // 1. Exact category match
     const exactMatch = normalizedCategories.find(
       (category) => category.searchName === normalizedQuery,
     );
     if (exactMatch) return exactMatch;
 
-    // 2. Direct includes category match
     const includesMatch = normalizedCategories.find((category) =>
       category.searchName.includes(normalizedQuery),
     );
     if (includesMatch) return includesMatch;
 
-    // 3. Reverse includes match
     const reverseIncludesMatch = normalizedCategories.find((category) =>
       normalizedQuery.includes(category.searchName),
     );
     if (reverseIncludesMatch) return reverseIncludesMatch;
 
-    // 4. Known typo aliases
     const typoAliasMatch = normalizedCategories.find((category) => {
       const aliases = getCategoryTypos(category.searchName);
       return aliases.includes(normalizedQuery);
     });
     if (typoAliasMatch) return typoAliasMatch;
 
-    // 5. Word-by-word typo alias check (for multi-word categories)
     const multiWordTypoMatch = normalizedCategories.find((category) => {
       const words = category.searchName.split(" ");
       return words.some((word) =>
@@ -247,7 +173,6 @@ export default function RestaurantChatPage() {
     });
     if (multiWordTypoMatch) return multiWordTypoMatch;
 
-    // 6. Strict Fuse fuzzy match
     const fuseResults = fuse.search(normalizedQuery);
 
     if (fuseResults.length > 0 && fuseResults[0].score <= 0.35) {
@@ -257,11 +182,6 @@ export default function RestaurantChatPage() {
     return null;
   };
 
-  /**
-   * -----------------------------
-   * Handle Category Button Click
-   * -----------------------------
-   */
   const handleCategoryClick = async (categoryId, categoryName) => {
     setMessages((prev) => [
       ...prev,
@@ -291,11 +211,6 @@ export default function RestaurantChatPage() {
     }
   };
 
-  /**
-   * -----------------------------
-   * Handle Chat Send
-   * -----------------------------
-   */
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -326,13 +241,6 @@ export default function RestaurantChatPage() {
     setInput("");
 
     try {
-      /**
-       * -----------------------------
-       * CASE 1:
-       * If user likely asked for a specific item,
-       * search MENU ITEMS first
-       * -----------------------------
-       */
       if (!categoryIntent && likelySpecificItem) {
         const itemResults = await searchMenuItems(restaurantId, cleanedText);
 
@@ -346,12 +254,6 @@ export default function RestaurantChatPage() {
         }
       }
 
-      /**
-       * -----------------------------
-       * CASE 2:
-       * Try category matching
-       * -----------------------------
-       */
       const matchedCategory = findBestCategoryMatch(cleanedText);
 
       if (matchedCategory) {
@@ -372,12 +274,6 @@ export default function RestaurantChatPage() {
         return;
       }
 
-      /**
-       * -----------------------------
-       * CASE 3:
-       * Fallback to menu item search
-       * -----------------------------
-       */
       const items = await searchMenuItems(restaurantId, cleanedText);
 
       if (items.length > 0) {
@@ -390,12 +286,6 @@ export default function RestaurantChatPage() {
         return;
       }
 
-      /**
-       * -----------------------------
-       * CASE 4:
-       * Final fallback
-       * -----------------------------
-       */
       replaceTypingMessage({
         role: "bot",
         text: "😕 I couldn’t find that. Try a category below 👇",
@@ -410,11 +300,6 @@ export default function RestaurantChatPage() {
     }
   };
 
-  /**
-   * -----------------------------
-   * Enter Key Support
-   * -----------------------------
-   */
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -422,11 +307,6 @@ export default function RestaurantChatPage() {
     }
   };
 
-  /**
-   * -----------------------------
-   * Order Logic
-   * -----------------------------
-   */
   const addToOrder = (item) => {
     setOrders((prev) => {
       const existing = prev.find((i) => i.name === item.name);
@@ -474,11 +354,7 @@ export default function RestaurantChatPage() {
 
       <div style={styles.chat} ref={chatRef}>
         {loadingRestaurant && (
-          <div
-            style={{ textAlign: "center", padding: "1rem", color: "#6b7280" }}
-          >
-            Loading restaurant...
-          </div>
+          <div style={styles.loadingText}>Loading restaurant...</div>
         )}
 
         {messages.map((msg, i) => (
@@ -503,27 +379,15 @@ export default function RestaurantChatPage() {
 
               {msg.text}
 
-              {msg.text && <div />}
-
               {msg.menu && (
                 <div style={styles.menuContainer}>
                   {msg.menu.map((item, index) => (
                     <div key={item?._id || index} style={styles.menuCard}>
                       {item?.image && (
                         <img
-                          src={
-                            item.image ||
-                            "https://source.unsplash.com/100x100/?food"
-                          }
+                          src={item.image}
                           alt={item?.name || ""}
-                          style={{
-                            width: 60,
-                            height: 60,
-                            borderRadius: 8,
-                            objectFit: "cover",
-                            marginRight: 10,
-                            flexShrink: 0,
-                          }}
+                          style={styles.menuImage}
                         />
                       )}
 
@@ -621,6 +485,12 @@ const styles = {
     background: "#FFFFFF",
   },
 
+  loadingText: {
+    textAlign: "center",
+    padding: "1rem",
+    color: "#6b7280",
+  },
+
   botBubble: {
     background: "#F1F3F5",
     padding: "1.2rem",
@@ -630,12 +500,13 @@ const styles = {
     marginBottom: "0.4rem",
     color: "#1F2937",
     position: "relative",
-    fontSize: "1.05rem",
+    fontSize: "1.25rem",
     lineHeight: 1.5,
   },
 
   userBubble: {
-    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
+    background:
+      "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "white",
     padding: "1.2rem",
     borderRadius: "16px 16px 6px 16px",
@@ -643,7 +514,7 @@ const styles = {
     maxWidth: 420,
     marginBottom: "0.4rem",
     position: "relative",
-    fontSize: "1.05rem",
+    fontSize: "1.25rem",
     lineHeight: 1.5,
   },
 
@@ -681,6 +552,15 @@ const styles = {
     alignItems: "flex-start",
   },
 
+  menuImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    objectFit: "cover",
+    marginRight: 10,
+    flexShrink: 0,
+  },
+
   menuTitle: {
     fontWeight: 600,
     color: "#374151",
@@ -688,7 +568,7 @@ const styles = {
   },
 
   menuDesc: {
-    fontSize: "0.95rem",
+    fontSize: "1rem",
     color: "#6b7280",
     lineHeight: 1.4,
     wordBreak: "break-word",
@@ -718,7 +598,8 @@ const styles = {
     height: 28,
     borderRadius: "50%",
     border: "none",
-    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
+    background:
+      "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "#fff",
     fontSize: "1.2rem",
     cursor: "pointer",
@@ -746,7 +627,7 @@ const styles = {
     padding: "0.75rem 1rem",
     borderRadius: 22,
     cursor: "pointer",
-    fontSize: "0.95rem",
+    fontSize: "1.25rem",
     whiteSpace: "nowrap",
     color: "#374151",
     fontWeight: 500,
@@ -766,7 +647,7 @@ const styles = {
     border: "1px solid #E5E7EB",
     padding: "1rem 1.2rem",
     background: "#F3F4F6",
-    fontSize: "1rem",
+    fontSize: "1.25rem",
     color: "#374151",
     outline: "none",
   },
@@ -776,7 +657,8 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
     border: "none",
-    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
+    background:
+      "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "#fff",
     width: 42,
     height: 42,

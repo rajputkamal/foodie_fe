@@ -9,7 +9,7 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
       <div style={styles.drawerHeader}>
         <div style={styles.headerLeft}>
           <ShoppingCart size={18} />
-          <span>Your Order</span>
+          <span>Your Orders</span>
         </div>
 
         <button style={styles.closeBtn} onClick={onCloseDrawer}>
@@ -71,9 +71,14 @@ const OrderDrawer = ({ orders, onCloseDrawer, decreaseQty, increaseQty }) => {
             {total}
           </span>
         </div>
-        
-        <Button primary title="Place Order" />
-        
+
+        <Button primary title="Staff Will Take Your Order" />
+        <div style={{ textAlign: "center" }}>
+          <p style={styles.itemTitle}>
+            Browse the menu here. Our staff will come to your table to take your
+            order.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -109,7 +114,7 @@ const styles = {
     gap: 8,
     alignItems: "center",
     fontWeight: 600,
-    fontSize: "1.2rem",
+    fontSize: "1.25rem",
   },
 
   closeBtn: {
@@ -199,7 +204,8 @@ const styles = {
   },
 
   placeBtn: {
-    background: "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
+    background:
+      "linear-gradient(135deg, rgb(37, 99, 235) 0%, rgb(79, 70, 229) 100%)",
     color: "white",
     border: "none",
     padding: "1.2rem",
