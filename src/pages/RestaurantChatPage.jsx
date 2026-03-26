@@ -471,11 +471,15 @@ export default function RestaurantChatPage() {
 
 const styles = {
   page: {
-    height: "100vh",
+    height: "100dvh",
+    minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
     background: "#F5F6F8",
     fontFamily: "Inter, sans-serif",
+    overflow: "hidden",
+    paddingTop: "env(safe-area-inset-top)",
+    paddingBottom: "env(safe-area-inset-bottom)",
   },
 
   chat: {
@@ -619,6 +623,7 @@ const styles = {
     color: "#374151",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
+    flexShrink: 0,
   },
 
   categoryBtn: {
@@ -636,9 +641,12 @@ const styles = {
   inputBar: {
     display: "flex",
     gap: 10,
-    padding: "1rem 1.2rem",
+    padding: "1rem 1.2rem calc(1rem + env(safe-area-inset-bottom)) 1.2rem",
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
+    position: "sticky",
+    bottom: 0,
+    zIndex: 10,
   },
 
   input: {
