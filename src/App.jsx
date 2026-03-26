@@ -11,20 +11,20 @@ import QRGenerator from "./pages/QRGenerator";
 function App() {
   return (
     <Routes>
-
       {/* Admin Dashboard Routes */}
       <Route path="/" element={<AdminLayout />}>
         <Route index element={<HomePage />} />
-        <Route path="/onboard" element={<RestaurantOnboarding />} />
-        <Route path="/category" element={<CategoriesPage />} />
-        <Route path="/qr-code" element={<QRGenerator />} />
-        {/* //TODO:: This route and functionality yet to be added */}
-        {/* <Route path="/restaurant/:restaurantId" element={<RestaurantPage />} /> */}
+        <Route path="onboard" element={<RestaurantOnboarding />} />
+        <Route path="category" element={<CategoriesPage />} />
+        <Route path="qr-code" element={<QRGenerator />} />
+        {/* <Route path="restaurant/:restaurantId" element={<RestaurantPage />} /> */}
       </Route>
 
       {/* Public Restaurant Page (NO ADMIN LAYOUT) */}
-      <Route path="/restaurant/:restaurantId/:tableNo" element={<RestaurantChatPage />} />
-
+      <Route
+        path="/restaurant/:restaurantId/:tableNo"
+        element={<RestaurantChatPage />}
+      />
     </Routes>
   );
 }
