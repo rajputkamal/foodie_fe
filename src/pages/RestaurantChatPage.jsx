@@ -90,17 +90,26 @@ export default function RestaurantChatPage() {
   };
 
   useEffect(() => {
+    // Mobile-first viewport height fix for iOS Safari
     const setAppHeight = () => {
-      document.documentElement.style.setProperty(
-        "--app-height",
-        `${window.innerHeight}px`,
-      );
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
     };
 
     setAppHeight();
 
     window.addEventListener("resize", setAppHeight);
     window.addEventListener("orientationchange", setAppHeight);
+
+    // Prevent zoom on double-tap
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    });
 
     return () => {
       window.removeEventListener("resize", setAppHeight);
@@ -371,94 +380,96 @@ export default function RestaurantChatPage() {
         ordersQty={ordersQty}
       />
 
-      <div style={styles.chat} ref={chatRef}>
-        {loadingRestaurant && (
-          <div style={styles.loadingText}>Loading restaurant...</div>
-        )}
+      <div style={styles.middle}>
+        <div style={styles.chat} ref={chatRef}>
+          {loadingRestaurant && (
+            <div style={styles.loadingText}>Loading restaurant...</div>
+          )}
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-              marginBottom: 8,
-            }}
-          >
+          {messages.map((msg, i) => (
             <div
-              style={msg.role === "user" ? styles.userBubble : styles.botBubble}
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 8,
+              }}
             >
-              {msg.typing && (
-                <div style={styles.typing}>
-                  <span style={styles.dot}></span>
-                  <span style={styles.dot}></span>
-                  <span style={styles.dot}></span>
-                </div>
-              )}
+              <div
+                style={msg.role === "user" ? styles.userBubble : styles.botBubble}
+              >
+                {msg.typing && (
+                  <div style={styles.typing}>
+                    <span style={styles.dot}></span>
+                    <span style={styles.dot}></span>
+                    <span style={styles.dot}></span>
+                  </div>
+                )}
 
-              {msg.text}
+                {msg.text}
 
-              {msg.menu && (
-                <div style={styles.menuContainer}>
-                  {msg.menu.map((item, index) => (
-                    <div key={item?._id || index} style={styles.menuCard}>
-                      {item?.image && (
-                        <img
-                          src={item.image}
-                          alt={item?.name || ""}
-                          style={styles.menuImage}
-                        />
-                      )}
+                {msg.menu && (
+                  <div style={styles.menuContainer}>
+                    {msg.menu.map((item, index) => (
+                      <div key={item?._id || index} style={styles.menuCard}>
+                        {item?.image && (
+                          <img
+                            src={item.image}
+                            alt={item?.name || ""}
+                            style={styles.menuImage}
+                          />
+                        )}
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={styles.menuTitleRow}>
-                          <div style={styles.vegIndicator(item.vegType)}></div>
-                          <div style={styles.menuTitle}>{item.name}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={styles.menuTitleRow}>
+                            <div style={styles.vegIndicator(item.vegType)}></div>
+                            <div style={styles.menuTitle}>{item.name}</div>
+                          </div>
+
+                          <div style={styles.menuDesc}>
+                            {item.description || "Tasty and freshly prepared."}
+                          </div>
                         </div>
 
-                        <div style={styles.menuDesc}>
-                          {item.description || "Tasty and freshly prepared."}
+                        <div style={styles.menuRight}>
+                          <div style={styles.price}>
+                            <IndianRupee size={12} />
+                            {item.price}
+                          </div>
+
+                          <button
+                            onClick={() => addToOrder(item)}
+                            style={{
+                              ...styles.addBtn,
+                              background:
+                                addedItem === item.name
+                                  ? "#16a34a"
+                                  : styles.addBtn.background,
+                            }}
+                          >
+                            {addedItem === item.name ? "✓" : "+"}
+                          </button>
                         </div>
                       </div>
-
-                      <div style={styles.menuRight}>
-                        <div style={styles.price}>
-                          <IndianRupee size={12} />
-                          {item.price}
-                        </div>
-
-                        <button
-                          onClick={() => addToOrder(item)}
-                          style={{
-                            ...styles.addBtn,
-                            background:
-                              addedItem === item.name
-                                ? "#16a34a"
-                                : styles.addBtn.background,
-                          }}
-                        >
-                          {addedItem === item.name ? "✓" : "+"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <div style={styles.categories}>
-        {restaurantCategories.map((c) => (
-          <button
-            key={c._id}
-            style={styles.categoryBtn}
-            onClick={() => handleCategoryClick(c._id, c.name)}
-          >
-            🍽 {c.name}
-          </button>
-        ))}
+        <div style={styles.categories}>
+          {restaurantCategories.map((c) => (
+            <button
+              key={c._id}
+              style={styles.categoryBtn}
+              onClick={() => handleCategoryClick(c._id, c.name)}
+            >
+              🍽 {c.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={styles.inputBar}>
@@ -490,21 +501,50 @@ export default function RestaurantChatPage() {
 
 const styles = {
   page: {
-    height: "var(--app-height)",
-    maxHeight: "var(--app-height)",
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100vw",
+    maxWidth: "100vw",
+    height: "calc(var(--vh, 1vh) * 100)",
     display: "flex",
     flexDirection: "column",
     background: "#F5F6F8",
     fontFamily: "Inter, sans-serif",
+    overflowX: "hidden",
+    overflowY: "hidden",
   },
+
+  middle: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: "calc(62px + env(safe-area-inset-bottom))",
+    display: "flex",
+    flexDirection: "column",
+    width: "100vw",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    overflow: "hidden",
+    paddingTop: "60px",
+    marginTop: 0,
+  },
+
 
   chat: {
     flex: 1,
     overflowY: "auto",
+    overflowX: "hidden",
     padding: "1.2rem",
     background: "#FFFFFF",
     minHeight: 0,
     WebkitOverflowScrolling: "touch",
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
   },
 
   loadingText: {
@@ -519,11 +559,14 @@ const styles = {
     borderRadius: "16px 16px 16px 6px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     maxWidth: 420,
+    width: "100%",
     marginBottom: "0.4rem",
     color: "#1F2937",
     position: "relative",
     fontSize: "1.25rem",
     lineHeight: 1.5,
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
 
   userBubble: {
@@ -534,10 +577,13 @@ const styles = {
     borderRadius: "16px 16px 6px 16px",
     boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
     maxWidth: 420,
+    // width: "100%",
     marginBottom: "0.4rem",
     position: "relative",
     fontSize: "1.25rem",
     lineHeight: 1.5,
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
 
   menuContainer: {
@@ -572,6 +618,9 @@ const styles = {
     borderRadius: 12,
     border: "1px solid #e5e7eb",
     alignItems: "flex-start",
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
   },
 
   menuImage: {
@@ -638,11 +687,15 @@ const styles = {
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
     overflowX: "auto",
+    overflowY: "hidden",
     color: "#374151",
     scrollbarWidth: "none",
     msOverflowStyle: "none",
     flexShrink: 0,
     WebkitOverflowScrolling: "touch",
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
   },
 
   categoryBtn: {
@@ -658,16 +711,24 @@ const styles = {
   },
 
   inputBar: {
+    position: "fixed",
+    bottom: "env(safe-area-inset-bottom)",
+    left: 0,
+    right: 0,
+    // zIndex: 99,
     display: "flex",
     gap: 10,
-    padding: "1rem 1.2rem max(1rem, env(safe-area-inset-bottom)) 1.2rem",
+    padding: "1rem 1.2rem",
     borderTop: "1px solid #E6E8EB",
     background: "#FFFFFF",
-    flexShrink: 0,
+    width: "100vw",
+    maxWidth: "100%",
+    boxSizing: "border-box",
   },
 
   input: {
     flex: 1,
+    minWidth: 0,
     borderRadius: 24,
     border: "1px solid #E5E7EB",
     padding: "1rem 1.2rem",
@@ -675,6 +736,7 @@ const styles = {
     fontSize: "1.25rem",
     color: "#374151",
     outline: "none",
+    fontFamily: "Inter, sans-serif",
   },
 
   send: {
@@ -687,6 +749,7 @@ const styles = {
     color: "#fff",
     width: 42,
     height: 42,
+    minWidth: 42,
     borderRadius: "50%",
     cursor: "pointer",
     flexShrink: 0,

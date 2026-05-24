@@ -23,6 +23,11 @@ export default ChatHeader;
 
 const styles = {
   header: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
     display: "flex",
     alignItems: "center",
     gap: 12,
@@ -30,6 +35,9 @@ const styles = {
     background: "#ffffff",
     borderBottom: "1px solid #E6E8EB",
     color: "#374151",
+    width: "100vw",
+    maxWidth: "100%",
+    boxSizing: "border-box",
   },
   headerLeft: {
     display: "flex",
