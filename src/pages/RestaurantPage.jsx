@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CategoryRow } from "../components/restaurant-detail/CategoryRow";
 
-const getCategories = async (restaurantId) => {
+const getCategories = async () => {
   return [
     { _id: "1", name: "Coffee" },
     { _id: "2", name: "Desserts" },

@@ -60,3 +60,35 @@ export const isLikelySpecificItemSearch = (text = "") => {
   const words = normalized.split(" ").filter(Boolean);
   return words.length > 0 && words.length <= 3;
 };
+
+export const getCategoryAliases = (categoryName = "") => {
+  const name = categoryName.toLowerCase();
+  const aliases = [];
+
+  if (name.includes("beverage") || name.includes("drink")) {
+    aliases.push("tea", "chai", "coffee", "juice", "shake", "smoothie", "soda", "iced tea");
+  }
+
+  if (name.includes("tea")) {
+    aliases.push("chai", "masala chai", "green tea", "iced tea");
+  }
+
+  if (name.includes("coffee")) {
+    aliases.push("latte", "espresso", "cappuccino", "americano");
+  }
+
+  if (name.includes("dessert") || name.includes("sweet") || name.includes("ice cream")) {
+    aliases.push("cake", "ice cream", "brownie", "dessert");
+  }
+
+  if (name.includes("bakery") || name.includes("pastry")) {
+    aliases.push("bread", "cake", "croissant", "pastry");
+  }
+
+  if (name.includes("pizza")) aliases.push("pizza");
+  if (name.includes("burger")) aliases.push("burger", "bun");
+  if (name.includes("biryani")) aliases.push("biryani", "rice");
+
+  // remove duplicates and normalize
+  return Array.from(new Set(aliases.map((a) => normalizeText(a))));
+};

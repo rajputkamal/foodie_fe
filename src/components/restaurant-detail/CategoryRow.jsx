@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MenuItemsTable } from "./MenuItemsTable";
 
-const getMenuItems = async (categoryId) => {
+const getMenuItems = async () => {
   return [
     { _id: "m1", name: "Cappuccino", price: 120 },
     { _id: "m2", name: "Latte", price: 150 },
